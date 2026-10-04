@@ -263,36 +263,20 @@ function showComplete(){
 }
 
 async function getCachedAudio(url){
-  if(!('caches' in window)) return url;
-  try{
-    const cache=await caches.open('hsk3-audio-v1');
-    const hit=await cache.match(url);
-    if(hit){
-      const blob=await hit.blob();
-      return URL.createObjectURL(blob);
-    }
-    const res=await fetch(url, {cache:'no-cache'});
-    if(!res.ok) throw new Error(`HTTP ${res.status}`);
-    await cache.put(url, res.clone());
-    const blob=await res.blob();
-    return URL.createObjectURL(blob);
-  }catch(err){
-    return url;
-  }
+  return url;
 }
 
 async function playAudioPath(path){
-  const url=new URL(path, document.baseURI).href;
+  const url = new URL(path, document.baseURI).href;
   try{
-    const playable=await getCachedAudio(url);
-    const audio=new Audio(playable);
-    audio.play().catch(()=>alert('Không thể phát audio. Hãy kiểm tra kết nối mạng hoặc mở website bằng trình duyệt hỗ trợ audio.'));
-    audio.addEventListener('ended',()=>{if(playable.startsWith('blob:')) URL.revokeObjectURL(playable);},{once:true});
+    const audio = new Audio(url);
+    audio.preload = "auto";
+    await audio.play();
   }catch(err){
-    alert('Không tìm thấy file audio: '+path);
+    alert("Không thể phát audio. Hãy kiểm tra kết nối mạng hoặc thử lại.");
+    console.error("Audio error:", err);
   }
 }
-
 function playWord(){
   const x=currentList[currentIndex];
   playAudioPath(DATA.audio.wordPattern.replace('{id}',encodeURIComponent(x.id)));
