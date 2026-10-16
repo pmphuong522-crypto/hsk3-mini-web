@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HSK3 Mini Web — Luyện tập</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="stylesheet" href="./practice/practice.css">
+</head>
+<body>
+<header class="topbar">
+  <div><strong>HSK3 Mini Web</strong><div class="sub">Luyện tập thích ứng</div></div>
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span id="accountStatus" class="sub">Chế độ thiết bị này</span><button class="btn" id="accountBtn">Tài khoản</button><a class="btn" href="./teacher.html">Teacher Dashboard</a><a class="btn" href="./index.html">← Flashcard</a></div>
+</header>
+<main>
+<section id="startView" class="panel">
+  <h1>Luyện tập HSK3</h1>
+  <p>Chọn bài học. Hệ thống sẽ ưu tiên từ chưa gặp trước, sau đó củng cố theo kết quả.</p>
+  <div class="review-entry"><div><b>🔁 Ôn tập câu sai</b><div class="sub" id="wrongCount">Các câu sai sẽ xuất hiện tại đây.</div></div><button class="btn primary" id="reviewWrongBtn">Bắt đầu ôn</button></div><div id="lessonGrid" class="lesson-grid"></div>
+  <div id="resumeBox" class="resume hidden"></div>
+</section>
+
+<section id="practiceView" class="hidden">
+  <div class="practice-head">
+    <div><button id="pauseBtn" class="btn">⏸ Tạm dừng</button><span id="lessonLabel" class="sub"></span></div>
+    <div class="timer" id="timer">00:00</div>
+  </div>
+  <div class="progress-meta"><span id="coverage">Đã gặp 0/0 từ</span><span id="qcount">0 câu</span></div>
+  <div class="bar"><i id="progressBar"></i></div>
+  <div id="questionCard" class="card"></div>
+</section>
+
+<section id="summaryView" class="panel hidden"></section>
+
+<div id="pauseOverlay" class="overlay hidden">
+  <div class="modal">
+    <h2>Đã tạm dừng</h2><p>Session hiện tại đã được lưu.</p>
+    <button id="resumeBtn" class="btn primary">Tiếp tục</button>
+    <button id="quitBtn" class="btn">Kết thúc session</button>
+  </div>
+</div>
+</main>
+<script src="./supabase-config.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="./cloud.js"></script><script src="./practice/exercise_bank_embedded.js"></script>
+<script src="./practice/practice.js"></script>
+</body>
+</html>

@@ -1,0 +1,123 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Teacher Dashboard — HSK3</title><link rel="stylesheet" href="./practice/practice.css"><style>body{max-width:1100px;margin:24px auto;padding:16px}.dash{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}.tile,.panel{padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--panel,#fff)}.num{font-size:28px;font-weight:800}.muted{color:var(--muted)}table{width:100%;border-collapse:collapse;margin-top:14px}th,td{text-align:left;padding:10px;border-bottom:1px solid var(--line)}.tablewrap{overflow:auto}</style></head><body>
+<header class="topbar"><div><strong>Teacher Dashboard</strong><div class="sub">Theo dõi tiến độ HSK3</div></div><div><a class="btn" href="./account.html">Tài khoản</a> <a class="btn" href="./practice.html">Luyện tập</a></div></header>
+<div id="accessStatus" class="panel" role="status" aria-live="polite" style="margin:16px 0">Đang kiểm tra quyền truy cập...</div>
+<section class="panel" id="dashboard" hidden>
+<h1>Tình hình học tập</h1><p id="notice" class="muted">Đang tải...</p>
+<div class="dash">
+<div class="tile">Học viên đã có hoạt động<div class="num" id="students">—</div></div>
+<div class="tile">Lượt trả lời<div class="num" id="answers">—</div></div>
+<div class="tile">Tỷ lệ chính xác<div class="num" id="accuracy">—</div></div>
+<div class="tile">Câu sai còn cần ôn<div class="num" id="wrong">—</div></div>
+</div>
+<h2>Học viên</h2><div class="tablewrap"><table><thead><tr><th>Học viên</th><th>Lượt trả lời</th><th>Tỷ lệ đúng</th><th>Câu sai</th><th>Hoạt động gần nhất</th></tr></thead><tbody id="rows"><tr><td colspan="5">Chưa có dữ liệu.</td></tr></tbody></table></div>
+<div id="wrongDetails" class="panel" hidden style="margin-top:18px">
+  <h2 id="wrongDetailsTitle">Chi tiết câu trả lời sai</h2>
+  <button class="btn" type="button" id="closeWrongDetails">Đóng</button>
+  <div id="wrongDetailsContent" class="tablewrap"></div>
+</div>
+<p class="muted">Dashboard chỉ hiển thị dữ liệu đồng bộ từ sau khi cấu hình Supabase và học viên đăng nhập. Vai trò giáo viên phải được cấp trong bảng profiles.</p>
+</section>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="./supabase-config.js"></script><script>
+(async()=>{
+  const status=document.getElementById('accessStatus');
+  const dashboard=document.getElementById('dashboard');
+  const notice=document.getElementById('notice');
+  const cfg=window.HSK_SUPABASE_CONFIG||{};
+
+  // Keep dashboard hidden until the signed-in user's role is verified.
+  if(!cfg.url||!cfg.anonKey||!window.supabase){
+    status.textContent='Chưa cấu hình Supabase. Hãy kiểm tra supabase-config.js.';
+    return;
+  }
+
+  const c=window.supabase.createClient(cfg.url,cfg.anonKey);
+  let sessionResult;
+  try {
+    sessionResult=await c.auth.getSession();
+  } catch(e) {
+    status.textContent='Không thể xác minh đăng nhập. Vui lòng tải lại trang.';
+    return;
+  }
+
+  const session=sessionResult?.data?.session;
+  if(!session){
+    status.textContent='Bạn cần đăng nhập bằng tài khoản giáo viên để xem Dashboard.';
+    return;
+  }
+
+  let profileResult;
+  try {
+    profileResult=await c.from('profiles').select('role').eq('id',session.user.id).maybeSingle();
+  } catch(e) {
+    status.textContent='Không thể xác minh quyền giáo viên. Vui lòng thử lại.';
+    return;
+  }
+
+  if(profileResult.error){
+    status.textContent='Không thể xác minh quyền truy cập. Vui lòng thử lại.';
+    return;
+  }
+  if(profileResult.data?.role!=='teacher'){
+    status.textContent='Tài khoản này không có quyền giáo viên. Dashboard đã bị khóa.';
+    return;
+  }
+
+  dashboard.hidden=false;
+  status.hidden=true;
+  notice.textContent='Đang tải dữ liệu...';
+
+  const r=await c.from('answer_events').select('student_id, is_correct, wrong_count, answered_at, lesson, exercise_type, exercise_id, word_id, skill, session_id');
+  if(r.error){
+    notice.textContent='Không tải được dữ liệu: '+r.error.message;
+    return;
+  }
+
+  const ev=r.data||[],by={};
+  for(const e of ev){(by[e.student_id]??=[]).push(e);}
+  // Load display names for the student IDs shown in answer_events.
+  const studentIds=Object.keys(by);
+  let nameById={};
+  if(studentIds.length){
+    const profilesResult=await c.from('profiles').select('id, display_name').in('id',studentIds);
+    if(!profilesResult.error){
+      for(const profile of (profilesResult.data||[])) nameById[profile.id]=profile.display_name||'';
+    }
+  }
+  const correct=ev.filter(e=>e.is_correct).length;
+  document.getElementById('students').textContent=Object.keys(by).length;
+  document.getElementById('answers').textContent=ev.length;
+  document.getElementById('accuracy').textContent=ev.length?Math.round(correct/ev.length*100)+'%':'—';
+  document.getElementById('wrong').textContent=ev.filter(e=>!e.is_correct).length;
+  const escHtml=value=>String(value??'—').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  document.getElementById('rows').innerHTML=Object.entries(by).map(([id,a])=>{
+    const ok=a.filter(x=>x.is_correct).length;
+    const latest=a.reduce((m,x)=>Math.max(m,Date.parse(x.answered_at)||0),0);
+    const studentName=nameById[id]||'Chưa có tên';
+    const wrongCount=a.filter(x=>!x.is_correct).length;
+    return `<tr><td><strong>${escHtml(studentName)}</strong><div class="muted" style="font-size:12px">${escHtml(id.slice(0,8)+'…')}</div></td><td>${a.length}</td><td>${Math.round(ok/a.length*100)}%</td><td>${wrongCount}<br><button class="btn view-wrong" type="button" data-student-id="${escHtml(id)}">Xem câu sai</button></td><td>${latest?new Date(latest).toLocaleString('vi-VN'):'—'}</td></tr>`;
+  }).join('')||'<tr><td colspan="5">Chưa có hoạt động.</td></tr>';
+
+  const detailPanel=document.getElementById('wrongDetails');
+  const detailTitle=document.getElementById('wrongDetailsTitle');
+  const detailContent=document.getElementById('wrongDetailsContent');
+  document.getElementById('closeWrongDetails').addEventListener('click',()=>{detailPanel.hidden=true;});
+  document.querySelectorAll('.view-wrong').forEach(button=>{
+    button.addEventListener('click',()=>{
+      const studentId=button.dataset.studentId;
+      const mistakes=ev.filter(x=>x.student_id===studentId && !x.is_correct)
+        .sort((a,b)=>(Date.parse(b.answered_at)||0)-(Date.parse(a.answered_at)||0));
+      detailTitle.textContent='Câu trả lời sai — học viên '+studentId.slice(0,8)+'…';
+      if(!mistakes.length){
+        detailContent.innerHTML='<p>Học viên này chưa có câu trả lời sai.</p>';
+      }else{
+        detailContent.innerHTML='<table><thead><tr><th>Thời gian</th><th>Bài</th><th>Dạng bài</th><th>Mã câu hỏi</th><th>Từ</th><th>Kỹ năng</th><th>Số lần sai</th></tr></thead><tbody>'+
+          mistakes.map(x=>`<tr><td>${escHtml(x.answered_at?new Date(x.answered_at).toLocaleString('vi-VN'):'—')}</td><td>${escHtml(x.lesson)}</td><td>${escHtml(x.exercise_type)}</td><td>${escHtml(x.exercise_id)}</td><td>${escHtml(x.word_id)}</td><td>${escHtml(x.skill)}</td><td>${escHtml(x.wrong_count)}</td></tr>`).join('')+
+          '</tbody></table>';
+      }
+      detailPanel.hidden=false;
+      detailPanel.scrollIntoView({behavior:'smooth',block:'start'});
+    });
+  });
+  notice.textContent='Dữ liệu đã đồng bộ. Nhấn “Xem câu sai” để xem các lượt trả lời sai của từng học viên.';
+})();
+</script></body></html>

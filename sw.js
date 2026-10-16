@@ -1,10 +1,19 @@
-const CACHE_NAME = 'hsk3-mini-web-v1';
+const CACHE_NAME = 'hsk3-mini-web-v38';
 const APP_SHELL = [
   './',
   './index.html',
   './manifest.webmanifest',
   './icons/icon-192.png',
-  './icons/icon-512.png'
+  './icons/icon-512.png',
+  './practice.html',
+  './account.html',
+  './teacher.html',
+  './cloud.js',
+  './supabase-config.js',
+  './practice/practice.css',
+  './practice/practice.js',
+  './practice/exercise_bank_embedded.js',
+  './practice/exercise_bank_v1.json'
 ];
 
 self.addEventListener('install', event => {
@@ -15,7 +24,7 @@ self.addEventListener('install', event => {
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys => Promise.all(
-      keys.filter(k => k !== CACHE_NAME && k !== 'hsk3-audio-v1').map(k => caches.delete(k))
+      keys.filter(k => k !== CACHE_NAME && k !== 'hsk3-audio-v15').map(k => caches.delete(k))
     ))
   );
   self.clients.claim();
@@ -37,5 +46,15 @@ self.addEventListener('fetch', event => {
       }))
     );
   }
-  // Audio is intentionally handled by the page-level audio cache so only played files are stored.
+  if (url.pathname.includes('/audio/')) {
+    event.respondWith(
+      caches.open('hsk3-audio-v15').then(async cache => {
+        const cached = await cache.match(req);
+        if (cached) return cached;
+        const res = await fetch(req);
+        if (res.ok) cache.put(req, res.clone());
+        return res;
+      })
+    );
+  }
 });
