@@ -9,6 +9,7 @@ const APP_SHELL = [
   './account.html',
   './teacher.html',
   './cloud.js',
+  './auth-guard.js',
   './supabase-config.js',
   './practice/practice.css',
   './practice/practice.js',
