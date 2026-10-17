@@ -46,5 +46,9 @@ main{max-width:980px;margin:28px auto;padding:0 18px}.panel,.card{background:#ff
   .topbar > div:last-child #accountStatus { flex: 1 0 100%; overflow-wrap: anywhere; }
 }
 @media (max-width: 380px) {
-  .topbar > div:last-child .btn { flex: 1 1 100%; }
+  .topbar > div:last-child .btn {
+  flex: 0 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+}
 }
